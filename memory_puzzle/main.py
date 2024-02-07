@@ -10,7 +10,7 @@ SPACE_X = 250
 SPACE_Y = 150
 GRID_ROW = 4
 GRID_COL = 4
-WAIT_TIME = 4 # the amount of seconds to show the pair of fruits
+WAIT_TIME = 2 # the amount of seconds to show the pair of fruits
 
 class Box(pygame.Rect):
     def __init__(self, left, top, width, height, face):
@@ -87,14 +87,25 @@ def checkMatch(grid, timer):
                         grid[i].permanent = True
                         grid[j].permanent = True
                         timer["active"] = True
-                        return timer, grid
+                        return grid, timer
                     else:
                         grid[i].reveal = False
                         grid[j].reveal = False
                         timer["active"] = True
-                        return timer, grid
-    timer["active"] = False
-    return timer, grid
+                        return grid, timer
+    #timer["active"] = False
+    return grid, timer
+
+def gridCheck(grid, timer, dt):
+    if timer["active"]:
+        timer["time"] += dt / 1000
+        if timer["time"] > WAIT_TIME:
+            print('close', timer["time"])
+            timer["time"] = 0
+            timer["active"] = False
+    else:
+        grid, timer = checkMatch(grid, timer)
+    return grid, timer
 
 def main():
     pygame.init()
@@ -115,19 +126,11 @@ def main():
                     sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 grid = checkMouseReveal(grid)
-        if timer["active"]:
-            timer["time"] += dt
-            if timer["time"] > WAIT_TIME:
-                timer["time"] = 0
-                timer["active"] = False
-        else:
-            timer, grid = checkMatch(grid, timer)
+        grid, timer = gridCheck(grid, timer, dt)
         drawGrid(grid, screen)
         pygame.display.update()
         dt = clock.tick(FPS)
                 
-
-
 
 
 if __name__ == "__main__":
