@@ -10,6 +10,7 @@ SPACE_X = 250
 SPACE_Y = 150
 GRID_ROW = 4
 GRID_COL = 4
+WAIT_TIME = 4 # the amount of seconds to show the pair of fruits
 
 class Box(pygame.Rect):
     def __init__(self, left, top, width, height, face):
@@ -17,9 +18,10 @@ class Box(pygame.Rect):
         self.color = COVER_WHITE
         self.face = face 
         self.reveal = False
+        self.permanent = False 
         
     def draw(self, surface):
-        if not self.reveal:
+        if not self.reveal and not self.permanent:
             pygame.draw.rect(surface, self.color, self)
         else:
             x, y = self.left, self.top
@@ -28,8 +30,10 @@ class Box(pygame.Rect):
             surface.blit(self.face, (x, y))
     
     def checkReveal(self):
+        #if not self.permanent:
         x, y = pygame.mouse.get_pos()
-        self.reveal = self.collidepoint(x, y)
+        if not self.reveal:
+            self.reveal = self.collidepoint(x, y)
 
 def loadShapes():
     shapes = []
@@ -70,8 +74,27 @@ def drawGrid(grid, screen):
         box.draw(screen)
 
 def checkMouseReveal(grid):
-    for box in grid:
-        box.checkReveal()
+    for i, box in enumerate(grid):
+        grid[i].checkReveal()
+    return grid 
+
+def checkMatch(grid, timer):
+    for i, box in enumerate(grid):
+        if box.reveal:
+            for j, box2 in enumerate(grid):
+                if i != j and box2.reveal:
+                    if box.face == box2.face:
+                        grid[i].permanent = True
+                        grid[j].permanent = True
+                        timer["active"] = True
+                        return timer, grid
+                    else:
+                        grid[i].reveal = False
+                        grid[j].reveal = False
+                        timer["active"] = True
+                        return timer, grid
+    timer["active"] = False
+    return timer, grid
 
 def main():
     pygame.init()
@@ -80,6 +103,8 @@ def main():
     clock = pygame.time.Clock()
     shapes = loadShapes()
     grid = makeGrid(GRID_ROW, GRID_COL, shapes)
+    dt = clock.tick(FPS)
+    timer = {"time": 0, "active": False} 
     while True:
         screen.fill(DARK_GREEN)
         for event in pygame.event.get():
@@ -88,10 +113,18 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     sys.exit()
-        checkMouseReveal(grid)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                grid = checkMouseReveal(grid)
+        if timer["active"]:
+            timer["time"] += dt
+            if timer["time"] > WAIT_TIME:
+                timer["time"] = 0
+                timer["active"] = False
+        else:
+            timer, grid = checkMatch(grid, timer)
         drawGrid(grid, screen)
         pygame.display.update()
-        clock.tick(FPS)
+        dt = clock.tick(FPS)
                 
 
 
