@@ -13,12 +13,13 @@ GRID_COL = 4
 WAIT_TIME = 2 # the amount of seconds to show the pair of fruits
 
 class Box(pygame.Rect):
-    def __init__(self, left, top, width, height, face):
+    def __init__(self, left, top, width, height, face, idx):
         super().__init__(left, top, width, height)
         self.color = COVER_WHITE
         self.face = face 
         self.reveal = False
         self.permanent = False 
+        self.idx = idx
         
     def draw(self, surface):
         if not self.reveal and not self.permanent:
@@ -34,6 +35,9 @@ class Box(pygame.Rect):
         x, y = pygame.mouse.get_pos()
         if not self.reveal:
             self.reveal = self.collidepoint(x, y)
+    
+    def __eq__(self, other):
+        return self.idx == other.idx
 
 def loadShapes():
     shapes = []
@@ -60,13 +64,15 @@ def makeGrid(nrow, ncol, shapes):
             pos.append((row, col))
     random.shuffle(pos)
     random.shuffle(shapes)
+    idx = 0
     while pos:
         row, col = pos.pop()
         row2, col2 = pos.pop()
         face = shapes.pop()
-        box = Box(*getLeftTop(row, col), CELL_SIZE, CELL_SIZE, face)
-        box2 = Box(*getLeftTop(row2, col2), CELL_SIZE, CELL_SIZE, face)
+        box = Box(*getLeftTop(row, col), CELL_SIZE, CELL_SIZE, face, idx)
+        box2 = Box(*getLeftTop(row2, col2), CELL_SIZE, CELL_SIZE, face, idx)
         grid.extend([box, box2])
+        idx += 1
     return grid 
 
 def drawGrid(grid, screen):
@@ -74,38 +80,31 @@ def drawGrid(grid, screen):
         box.draw(screen)
 
 def checkMouseReveal(grid):
+    pair = []
     for i, box in enumerate(grid):
         grid[i].checkReveal()
-    return grid 
+        if grid[i].reveal and not grid[i].permanent:
+            pair.append([grid[i], i])
+    return pair
 
-def checkMatch(grid, timer):
-    for i, box in enumerate(grid):
-        if box.reveal:
-            for j, box2 in enumerate(grid):
-                if i != j and box2.reveal:
-                    if box.face == box2.face:
-                        grid[i].permanent = True
-                        grid[j].permanent = True
-                        timer["active"] = True
-                        return grid, timer
-                    else:
-                        grid[i].reveal = False
-                        grid[j].reveal = False
-                        timer["active"] = True
-                        return grid, timer
-    #timer["active"] = False
-    return grid, timer
-
-def gridCheck(grid, timer, dt):
+def gridCheck(grid, timer, dt, pair):
     if timer["active"]:
         timer["time"] += dt / 1000
         if timer["time"] > WAIT_TIME:
-            print('close', timer["time"])
             timer["time"] = 0
             timer["active"] = False
     else:
-        grid, timer = checkMatch(grid, timer)
-    return grid, timer
+        if len(pair) == 2:
+            timer["active"] = True
+            if pair[0][0] == pair[1][0]:
+                index_1, index_2 = pair[0][1], pair[1][1]
+                grid[index_1].permanent = True
+                grid[index_2].permanent = True
+            else:
+                index_1, index_2 = pair[0][1], pair[1][1]
+                grid[index_1].reveal = False
+                grid[index_2].reveal = False
+            pair = []
 
 def main():
     pygame.init()
@@ -114,6 +113,7 @@ def main():
     clock = pygame.time.Clock()
     shapes = loadShapes()
     grid = makeGrid(GRID_ROW, GRID_COL, shapes)
+    pair = [] # store the two revealed boxes
     dt = clock.tick(FPS)
     timer = {"time": 0, "active": False} 
     while True:
@@ -125,8 +125,8 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                grid = checkMouseReveal(grid)
-        grid, timer = gridCheck(grid, timer, dt)
+                pair = checkMouseReveal(grid)
+        gridCheck(grid, timer, dt, pair)
         drawGrid(grid, screen)
         pygame.display.update()
         dt = clock.tick(FPS)
