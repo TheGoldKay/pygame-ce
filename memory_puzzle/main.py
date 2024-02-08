@@ -5,7 +5,7 @@ DARK_GREEN = (2, 48, 32)
 COVER_WHITE = (200, 200, 200)
 FPS = 60
 CELL_SIZE = 60
-GAP = 10
+GAP = 8
 SPACE_X = 250
 SPACE_Y = 150
 GRID_ROW = 4
@@ -29,12 +29,22 @@ class Box(pygame.Rect):
             x += self.face.get_width() / 2
             y += self.face.get_height() / 2
             surface.blit(self.face, (x, y))
+        if self._hovering():
+            self._highlight(surface)
+    
+    def _highlight(self, surface):
+        rect = pygame.Rect(0, 0, self.width + 10, self.height + 10)
+        rect.center = self.center
+        pygame.draw.rect(surface, (0, 200, 0), rect, 5)
     
     def checkReveal(self):
         #if not self.permanent:
         x, y = pygame.mouse.get_pos()
         if not self.reveal:
             self.reveal = self.collidepoint(x, y)
+    
+    def _hovering(self):
+        return self.collidepoint(*pygame.mouse.get_pos())
     
     def __eq__(self, other):
         return self.idx == other.idx
@@ -118,6 +128,7 @@ def main():
     timer = {"time": 0, "active": False} 
     while True:
         screen.fill(DARK_GREEN)
+        mouse_moved = False 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
@@ -126,6 +137,9 @@ def main():
                     sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pair = checkMouseReveal(grid)
+            elif event.type == pygame.MOUSEMOTION:
+                mousex, mousey = event.pos
+                mouse_moved = True
         gridCheck(grid, timer, dt, pair)
         drawGrid(grid, screen)
         pygame.display.update()
